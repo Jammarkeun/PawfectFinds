@@ -1,0 +1,525 @@
+{% extends "rider/rider_base.html" %}
+
+{% block title %}Available Orders - Pawfect Finds{% endblock %}
+
+{% block extra_css %}
+<style>
+    .order-card {
+        transition: all 0.3s ease;
+    }
+    .order-card.accepted {
+        border-left: 5px solid #28a745;
+    }
+    .order-card.taken {
+        opacity: 0.6;
+        background-color: #f8f9fa;
+    }
+    .toast-container {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 1100;
+    }
+    .new-order-badge {
+        position: absolute;
+        top: -10px;
+        right: -10px;
+        font-size: 0.7rem;
+        padding: 0.25rem 0.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <h1 class="mt-4">Available Orders</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item"><a href="{{ url_for('rider.dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Available Orders</li>
+    </ol>
+
+    <!-- Toast Notifications -->
+    <div class="toast-container">
+        <div id="newOrderToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true" data-bs-delay="5000">
+            <div class="toast-header bg-primary text-white">
+                <strong class="me-auto">New Delivery Available</strong>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+            <div class="toast-body">
+                <p class="mb-1">A new delivery order is available for pickup.</p>
+                <div class="d-flex justify-content-end">
+                    <button type="button" class="btn btn-sm btn-outline-primary" id="viewNewOrderBtn">View Order</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <div>
+                        <i class="fas fa-box me-1"></i>
+                        Available Delivery Orders
+                        <span id="active-orders-count" class="badge bg-primary ms-2">{{ orders|length if orders else 0 }}</span>
+                    </div>
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="autoRefreshToggle" checked>
+                        <label class="form-check-label" for="autoRefreshToggle">Auto-refresh</label>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="available-orders-container">
+                        {% if orders %}
+                            {% for order in orders %}
+                                <div class="card mb-3 order-card" id="order-{{ order.id }}" data-order-id="{{ order.id }}">
+                                    <div class="card-header d-flex justify-content-between align-items-center position-relative">
+                                        <h5 class="mb-0">Order #{{ order.order_number }}</h5>
+                                        <span class="badge bg-primary">{{ order.status|replace('_', ' ')|title }}</span>
+                                        <span class="new-order-badge badge bg-danger d-none">New!</span>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <h6><i class="fas fa-store me-2"></i>Pickup From</h6>
+                                                <p class="mb-1"><strong>{{ order.seller.business_name or 'Store' }}</strong></p>
+                                                <p class="mb-1">{{ order.seller.address or 'Pickup Location' }}</p>
+                                                <p class="mb-1">{{ order.seller.city }}, {{ order.seller.province }}</p>
+                                                <p class="mb-1"><i class="fas fa-phone me-1"></i> {{ order.seller.phone or 'N/A' }}</p>
+                                                
+                                                <hr>
+                                                
+                                                <h6 class="mt-3"><i class="fas fa-shopping-bag me-2"></i>Order Details</h6>
+                                                <p class="mb-1"><strong>Total Amount:</strong> ₱{{ "%.2f"|format(order.total_amount or 0) }}</p>
+                                                <p class="mb-1"><strong>Items:</strong> {{ order.items|length }}</p>
+                                                <button class="btn btn-sm btn-outline-secondary mt-2" type="button" data-bs-toggle="collapse" 
+                                                        data-bs-target="#orderItems-{{ order.id }}" aria-expanded="false" 
+                                                        aria-controls="orderItems-{{ order.id }}">
+                                                    View Items
+                                                </button>
+                                                <div class="collapse mt-2" id="orderItems-{{ order.id }}">
+                                                    <div class="card card-body">
+                                                        <ul class="list-unstyled mb-0">
+                                                            {% for item in order.items %}
+                                                            <li class="d-flex justify-content-between">
+                                                                <span>{{ item.quantity }}x {{ item.product.name }}</span>
+                                                                <span>₱{{ "%.2f"|format(item.price * item.quantity) }}</span>
+                                                            </li>
+                                                            {% endfor %}
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <h6><i class="fas fa-map-marker-alt me-2"></i>Deliver To</h6>
+                                                <p class="mb-1"><strong>{{ order.shipping_address.recipient_name }}</strong></p>
+                                                <p class="mb-1">{{ order.shipping_address.contact_number }}</p>
+                                                <p class="mb-1">{{ order.shipping_address.street_address }}</p>
+                                                <p class="mb-1">{{ order.shipping_address.city }}, {{ order.shipping_address.province }}</p>
+                                                <p class="mb-1">{{ order.shipping_address.postal_code }}</p>
+                                                
+                                                <div class="distance-estimate mt-3 p-2 bg-light rounded">
+                                                    <small class="text-muted">
+                                                        <i class="fas fa-map-marked-alt me-1"></i>
+                                                        <span id="distance-{{ order.id }}">Calculating distance...</span>
+                                                    </small>
+                                                    <br>
+                                                    <small class="text-muted">
+                                                        <i class="fas fa-clock me-1"></i>
+                                                        <span id="duration-{{ order.id }}">Estimating time...</span>
+                                                    </small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="text-end mt-3">
+                                            <button class="btn btn-primary btn-accept-order" 
+                                                    data-order-id="{{ order.id }}"
+                                                    data-order-number="{{ order.order_number }}">
+                                                <i class="fas fa-check-circle me-1"></i> Accept Order
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle me-2"></i>
+                                No available orders at the moment. New orders will appear here automatically.
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="https://cdn.socket.io/4.5.0/socket.io.min.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const riderId = '{{ current_user.id }}';
+        const socket = io();
+        const availableOrdersContainer = document.getElementById('available-orders-container');
+        const activeOrdersCount = document.getElementById('active-orders-count');
+        const newOrderToast = new bootstrap.Toast(document.getElementById('newOrderToast'));
+        let isOnline = false;
+        let autoRefresh = true;
+        
+        // Toggle auto-refresh
+        document.getElementById('autoRefreshToggle').addEventListener('change', function(e) {
+            autoRefresh = e.target.checked;
+            if (autoRefresh && !isOnline) {
+                connectToSocket();
+            } else if (!autoRefresh && isOnline) {
+                socket.disconnect();
+                isOnline = false;
+            }
+        });
+        
+        // Connect to WebSocket server
+        function connectToSocket() {
+            if (!isOnline) {
+                socket.connect();
+                socket.emit('rider_online', { rider_id: riderId });
+                isOnline = true;
+                console.log('Connected to WebSocket server');
+            }
+        }
+        
+        // Initialize WebSocket connection if auto-refresh is enabled
+        if (autoRefresh) {
+            connectToSocket();
+        }
+        
+        // Handle new delivery opportunity
+        socket.on('new_delivery_opportunity', function(data) {
+            console.log('New delivery opportunity:', data);
+            
+            // Check if order already exists in the list
+            const existingOrder = document.getElementById(`order-${data.order_id}`);
+            if (existingOrder) {
+                return; // Order already in the list
+            }
+            
+            // Create new order card
+            const orderCard = `
+                <div class="card mb-3 order-card" id="order-${data.order_id}" data-order-id="${data.order_id}">
+                    <div class="card-header d-flex justify-content-between align-items-center position-relative">
+                        <h5 class="mb-0">Order #${data.order_number}</h5>
+                        <span class="badge bg-primary">Ready for Pickup</span>
+                        <span class="new-order-badge badge bg-danger">New!</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6><i class="fas fa-store me-2"></i>Pickup From</h6>
+                                <p class="mb-1"><strong>${data.pickup_address.name}</strong></p>
+                                <p class="mb-1">${data.pickup_address.address}</p>
+                                <p class="mb-1"><i class="fas fa-phone me-1"></i> ${data.pickup_address.contact || 'N/A'}</p>
+                                
+                                <hr>
+                                
+                                <h6 class="mt-3"><i class="fas fa-shopping-bag me-2"></i>Order Details</h6>
+                                <p class="mb-1"><strong>Total Amount:</strong> ₱${parseFloat(data.total_amount).toFixed(2)}</p>
+                                <p class="mb-1"><strong>Items:</strong> ${data.items_count}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <h6><i class="fas fa-map-marker-alt me-2"></i>Deliver To</h6>
+                                <p class="mb-1"><strong>${data.delivery_address.name}</strong></p>
+                                <p class="mb-1">${data.delivery_address.contact || 'N/A'}</p>
+                                <p class="mb-1">${data.delivery_address.address}</p>
+                                
+                                <div class="distance-estimate mt-3 p-2 bg-light rounded">
+                                    <small class="text-muted">
+                                        <i class="fas fa-map-marked-alt me-1"></i>
+                                        <span id="distance-${data.order_id}">Calculating distance...</span>
+                                    </small>
+                                    <br>
+                                    <small class="text-muted">
+                                        <i class="fas fa-clock me-1"></i>
+                                        <span id="duration-${data.order_id}">Estimating time...</span>
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="text-end mt-3">
+                            <button class="btn btn-primary btn-accept-order" 
+                                    data-order-id="${data.order_id}"
+                                    data-order-number="${data.order_number}">
+                                <i class="fas fa-check-circle me-1"></i> Accept Order
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Add new order to the top of the list
+            const noOrdersAlert = availableOrdersContainer.querySelector('.alert');
+            if (noOrdersAlert) {
+                availableOrdersContainer.innerHTML = '';
+            }
+            
+            availableOrdersContainer.insertAdjacentHTML('afterbegin', orderCard);
+            updateActiveOrdersCount();
+            
+            // Show toast notification
+            const toastBody = newOrderToast._element.querySelector('.toast-body');
+            toastBody.querySelector('p').textContent = `New delivery order #${data.order_number} is available for pickup.`;
+            
+            const viewBtn = toastBody.querySelector('#viewNewOrderBtn');
+            viewBtn.onclick = function() {
+                const orderElement = document.getElementById(`order-${data.order_id}`);
+                if (orderElement) {
+                    orderElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    orderElement.classList.add('border', 'border-3', 'border-primary');
+                    setTimeout(() => {
+                        orderElement.classList.remove('border', 'border-3', 'border-primary');
+                    }, 3000);
+                }
+                newOrderToast.hide();
+            };
+            
+            newOrderToast.show();
+            
+            // Remove 'New!' badge after 30 seconds
+            setTimeout(() => {
+                const newBadge = document.querySelector(`#order-${data.order_id} .new-order-badge`);
+                if (newBadge) {
+                    newBadge.remove();
+                }
+            }, 30000);
+            
+            // Calculate distance and duration using Google Maps API if available
+            if (typeof google !== 'undefined' && google.maps) {
+                calculateDistanceAndDuration(
+                    data.pickup_address.address,
+                    data.delivery_address.address,
+                    data.order_id
+                );
+            }
+        });
+        
+        // Handle order taken by another rider
+        socket.on('order_taken', function(data) {
+            console.log('Order taken by another rider:', data);
+            const orderCard = document.getElementById(`order-${data.order_id}`);
+            if (orderCard) {
+                if (data.rider_id === riderId) {
+                    // This rider took the order
+                    orderCard.classList.add('accepted');
+                    const acceptBtn = orderCard.querySelector('.btn-accept-order');
+                    if (acceptBtn) {
+                        acceptBtn.disabled = true;
+                        acceptBtn.innerHTML = '<i class="fas fa-check-circle me-1"></i> Order Accepted';
+                    }
+                    
+                    // Show success message
+                    showToast('Order Accepted', 'You have successfully accepted this order.', 'success');
+                    
+                    // Redirect to order details after a short delay
+                    setTimeout(() => {
+                        window.location.href = `/rider/order/${data.order_id}`;
+                    }, 1500);
+                } else {
+                    // Another rider took the order
+                    orderCard.classList.add('taken');
+                    const acceptBtn = orderCard.querySelector('.btn-accept-order');
+                    if (acceptBtn) {
+                        acceptBtn.disabled = true;
+                        acceptBtn.innerHTML = '<i class="fas fa-times-circle me-1"></i> Order Taken';
+                        acceptBtn.classList.remove('btn-primary');
+                        acceptBtn.classList.add('btn-secondary');
+                    }
+                    
+                    // Show info message
+                    showToast('Order Unavailable', 'This order has been accepted by another rider.', 'info');
+                    
+                    // Remove the order card after a delay
+                    setTimeout(() => {
+                        orderCard.remove();
+                        updateActiveOrdersCount();
+                    }, 5000);
+                }
+            }
+        });
+        
+        // Handle successful order acceptance
+        socket.on('order_accepted', function(data) {
+            console.log('Order accepted:', data);
+            const orderCard = document.getElementById(`order-${data.order_id}`);
+            if (orderCard) {
+                orderCard.classList.add('accepted');
+                const acceptBtn = orderCard.querySelector('.btn-accept-order');
+                if (acceptBtn) {
+                    acceptBtn.disabled = true;
+                    acceptBtn.innerHTML = '<i class="fas fa-check-circle me-1"></i> Order Accepted';
+                }
+                
+                // Show success message
+                showToast('Order Accepted', data.message, 'success');
+                
+                // Redirect to order details if URL is provided
+                if (data.redirect_url) {
+                    setTimeout(() => {
+                        window.location.href = data.redirect_url;
+                    }, 1500);
+                }
+            }
+        });
+        
+        // Handle order accept errors
+        socket.on('order_accept_error', function(data) {
+            console.error('Error accepting order:', data);
+            showToast('Order Error', data.message, 'danger');
+            
+            const acceptBtn = document.querySelector(`.btn-accept-order[data-order-id="${data.order_id}"]`);
+            if (acceptBtn) {
+                acceptBtn.disabled = false;
+                acceptBtn.innerHTML = '<i class="fas fa-check-circle me-1"></i> Accept Order';
+            }
+        });
+        
+        // Handle connection events
+        socket.on('connect', function() {
+            console.log('Connected to WebSocket server');
+            isOnline = true;
+            socket.emit('rider_online', { rider_id: riderId });
+        });
+        
+        socket.on('disconnect', function() {
+            console.log('Disconnected from WebSocket server');
+            isOnline = false;
+            
+            // Try to reconnect if auto-refresh is enabled
+            if (autoRefresh) {
+                console.log('Attempting to reconnect...');
+                setTimeout(connectToSocket, 3000);
+            }
+        });
+        
+        // Handle accept order button clicks
+        availableOrdersContainer.addEventListener('click', function(e) {
+            if (e.target.classList.contains('btn-accept-order') || e.target.closest('.btn-accept-order')) {
+                const button = e.target.classList.contains('btn-accept-order') ? e.target : e.target.closest('.btn-accept-order');
+                const orderId = button.getAttribute('data-order-id');
+                const orderNumber = button.getAttribute('data-order-number');
+                
+                if (!orderId) return;
+                
+                // Disable button and show loading state
+                button.disabled = true;
+                button.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Accepting...';
+                
+                // Emit accept_order event
+                socket.emit('accept_order', {
+                    rider_id: riderId,
+                    order_id: orderId,
+                    order_number: orderNumber
+                });
+                
+                // Show confirmation dialog
+                if (confirm(`Are you sure you want to accept Order #${orderNumber}?`)) {
+                    // The actual acceptance is handled by the WebSocket server
+                } else {
+                    // Re-enable button if user cancels
+                    button.disabled = false;
+                    button.innerHTML = '<i class="fas fa-check-circle me-1"></i> Accept Order';
+                }
+            }
+        });
+        
+        // Update active orders count
+        function updateActiveOrdersCount() {
+            const orderCards = document.querySelectorAll('.order-card:not(.taken)');
+            activeOrdersCount.textContent = orderCards.length;
+            
+            // Show/hide no orders message
+            const noOrdersAlert = availableOrdersContainer.querySelector('.alert');
+            if (orderCards.length === 0 && !noOrdersAlert) {
+                availableOrdersContainer.innerHTML = `
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        No available orders at the moment. New orders will appear here automatically.
+                    </div>
+                `;
+            } else if (orderCards.length > 0 && noOrdersAlert) {
+                noOrdersAlert.remove();
+            }
+        }
+        
+        // Show toast notification
+        function showToast(title, message, type = 'info') {
+            const toastContainer = document.querySelector('.toast-container');
+            const toastId = 'toast-' + Date.now();
+            const toastHtml = `
+                <div id="${toastId}" class="toast" role="alert" aria-live="assertive" aria-atomic="true" data-bs-delay="5000">
+                    <div class="toast-header bg-${type} text-white">
+                        <strong class="me-auto">${title}</strong>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
+                    </div>
+                    <div class="toast-body">
+                        ${message}
+                    </div>
+                </div>
+            `;
+            
+            toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+            const toastElement = document.getElementById(toastId);
+            const toast = new bootstrap.Toast(toastElement);
+            toast.show();
+            
+            // Remove toast after it's hidden
+            toastElement.addEventListener('hidden.bs.toast', function() {
+                toastElement.remove();
+            });
+        }
+        
+        // Calculate distance and duration using Google Maps API
+        function calculateDistanceAndDuration(origin, destination, orderId) {
+            const service = new google.maps.DistanceMatrixService();
+            
+            service.getDistanceMatrix({
+                origins: [origin],
+                destinations: [destination],
+                travelMode: google.maps.TravelMode.DRIVING,
+                unitSystem: google.maps.UnitSystem.METRIC
+            }, function(response, status) {
+                if (status === 'OK') {
+                    const distance = response.rows[0].elements[0].distance;
+                    const duration = response.rows[0].elements[0].duration;
+                    
+                    // Update the UI with distance and duration
+                    const distanceElement = document.getElementById(`distance-${orderId}`);
+                    const durationElement = document.getElementById(`duration-${orderId}`);
+                    
+                    if (distanceElement) {
+                        distanceElement.textContent = distance.text;
+                    }
+                    
+                    if (durationElement) {
+                        durationElement.textContent = duration.text + ' away';
+                    }
+                }
+            });
+        }
+        
+        // Initialize active orders count
+        updateActiveOrdersCount();
+        
+        // Initialize tooltips
+        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+        
+        // Initialize popovers
+        const popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
+        popoverTriggerList.map(function (popoverTriggerEl) {
+            return new bootstrap.Popover(popoverTriggerEl);
+        });
+    });
+</script>
+{% endblock %}
