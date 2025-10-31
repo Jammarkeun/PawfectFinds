@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+
+{% block title %}Products - Pawfect Finds{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h2><i class="fas fa-shopping-bag"></i> Pet Products</h2>
+            <p class="text-muted">Find the perfect products for your furry friends</p>
+        </div>
+    </div>
+    
+    <!-- Search and Filter -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <form method="GET" class="row g-3">
+                        <div class="col-md-4">
+                            <label for="search" class="form-label">Search</label>
+                            <input type="text" class="form-control" id="search" name="search" 
+                                   value="{{ search or '' }}" placeholder="Search products...">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="category" class="form-label">Category</label>
+                            <select class="form-select" id="category" name="category">
+                                <option value="">All Categories</option>
+                                {% for cat in categories %}
+                                    <option value="{{ cat.id }}" {{ 'selected' if category_id == cat.id }}>
+                                        {{ cat.name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary me-2">
+                                <i class="fas fa-search"></i> Search
+                            </button>
+                            <a href="{{ url_for('public.browse_products') }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times"></i> Clear
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Results Info -->
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <p class="mb-0 text-muted">
+                    {% if total_products > 0 %}
+                        Showing {{ (current_page - 1) * 12 + 1 }} to {{ 
+                            current_page * 12 if current_page * 12 < total_products else total_products 
+                        }} of {{ total_products }} products
+                    {% else %}
+                        No products found
+                    {% endif %}
+                </p>
+                
+                {% if total_pages > 1 %}
+                    <nav aria-label="Product pagination">
+                        <ul class="pagination pagination-sm mb-0">
+                            {% if has_prev %}
+                                <li class="page-item">
+                                    <a class="page-link" href="{{ url_for('public.browse_products', 
+                                        page=prev_page, search=search, category=category_id) }}">
+                                        Previous
+                                    </a>
+                                </li>
+                            {% endif %}
+                            
+                            <li class="page-item active">
+                                <span class="page-link">{{ current_page }}</span>
+                            </li>
+                            
+                            {% if has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="{{ url_for('public.browse_products', 
+                                        page=next_page, search=search, category=category_id) }}">
+                                        Next
+                                    </a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Products Grid -->
+    <div class="row">
+        {% if products %}
+            {% for product in products %}
+                <div class="col-md-6 col-lg-4 col-xl-3 mb-4">
+                    <div class="card product-card h-100">
+                        <img src="{{ product.image_url|image_url }}"
+                             class="card-img-top" alt="{{ product.name }}" style="height: 200px; object-fit: cover;"
+                             loading="lazy" decoding="async">
+                        
+                        <div class="card-body d-flex flex-column">
+                            <h6 class="card-title">{{ product.name }}</h6>
+                            <p class="card-text text-muted small flex-grow-1">
+                                {{ product.description[:80] }}{% if product.description|length > 80 %}...{% endif %}
+                            </p>
+                            
+                            <div class="mb-2">
+                                <span class="badge bg-secondary">{{ product.category_name }}</span>
+                                {% if product.stock_quantity <= 0 %}
+                                    <span class="badge bg-danger">Out of Stock</span>
+                                {% elif product.stock_quantity <= 5 %}
+                                    <span class="badge bg-warning">Low Stock</span>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <div>
+                                    <strong class="text-primary h5">{{ product.price|apply_discount|php }}</strong>
+                                    <small class="text-muted text-decoration-line-through ms-2">{{ product.price|php }}</small>
+                                    <span class="badge bg-success ms-1">₱50 off</span>
+                                </div>
+                                <small class="text-muted">By {{ product.seller_username }}</small>
+                            </div>
+                            
+                            <div class="mt-auto">
+                                <a href="{{ url_for('public.product_detail', product_id=product.id) }}" 
+                                   class="btn btn-primary btn-sm w-100">
+                                    <i class="fas fa-eye"></i> View Details
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <div class="col-12">
+                <div class="text-center py-5">
+                    <i class="fas fa-search fa-3x text-muted mb-3"></i>
+                    <h4 class="text-muted">No Products Found</h4>
+                    <p class="text-muted">
+                        {% if search or category_id %}
+                            Try adjusting your search or filter criteria.
+                        {% else %}
+                            No products available at the moment.
+                        {% endif %}
+                    </p>
+                    <a href="{{ url_for('public.browse_products') }}" class="btn btn-primary">
+                        <i class="fas fa-refresh"></i> View All Products
+                    </a>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+    
+    <!-- Pagination -->
+    {% if total_pages > 1 %}
+        <div class="row mt-4">
+            <div class="col-12">
+                <nav aria-label="Product pagination">
+                    <ul class="pagination justify-content-center">
+                        {% if has_prev %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('public.browse_products', 
+                                    page=prev_page, search=search, category=category_id) }}">
+                                    <i class="fas fa-chevron-left"></i> Previous
+                                </a>
+                            </li>
+                        {% endif %}
+                        
+                        <!-- Show current page info -->
+                        <li class="page-item active">
+                            <span class="page-link">
+                                Page {{ current_page }} of {{ total_pages }}
+                            </span>
+                        </li>
+                        
+                        {% if has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('public.browse_products', 
+                                    page=next_page, search=search, category=category_id) }}">
+                                    Next <i class="fas fa-chevron-right"></i>
+                                </a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

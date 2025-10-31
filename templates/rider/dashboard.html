@@ -1,0 +1,381 @@
+{% extends "base.html" %}
+
+{% block title %}Rider Dashboard - Pawfect Finds{% endblock %}
+
+{% block content %}
+<style>
+/* ============================
+   PAWFECT FINDS RIDER DASHBOARD
+   Brown Color Palette Edition (Same as Admin)
+=============================== */
+
+body {
+    background-color: #f9f5f0; /* soft beige */
+    font-family: 'Poppins', sans-serif;
+}
+
+/* Container Styling */
+.container, .container-fluid {
+    background: #f9f5f0;
+    color: #4e342e;
+    border-radius: 15px;
+    padding: 15px 40px;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+    margin-top: 20px;
+}
+
+/* Header */
+h2 {
+    color: #4e342e;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    margin-bottom: 10px;
+}
+
+.text-muted {
+    color: #a1887f !important;
+}
+
+.text-light {
+    color: #4e342e !important;
+}
+
+.h5, h5 {
+    color: #4e342e !important;
+}
+
+p {
+    color: #4e342e !important;
+}
+
+/* Card Styles */
+.card {
+    border: none;
+    border-radius: 16px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+    transition: all 0.3s ease;
+}
+
+.card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.15);
+}
+
+.card-body {
+    text-align: center;
+    padding: 25px 20px;
+}
+
+.card-body h4 {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 5px;
+}
+
+.card-body p {
+    font-size: 1rem;
+    font-weight: 500;
+}
+
+/* Header inside Card */
+.card-header {
+    background-color: #f3e3d3;
+    color: #4e342e;
+    font-weight: 600;
+    border-top-left-radius: 16px;
+    border-top-right-radius: 16px;
+    padding: 15px 20px;
+    border-bottom: 2px solid #e0c9a6;
+}
+
+/* Buttons */
+.btn-primary {
+    background-color: #795548;
+    border: none;
+    border-radius: 10px;
+    padding: 10px 22px;
+    font-weight: 600;
+    transition: 0.3s ease;
+    box-shadow: 0 4px 8px rgba(121, 85, 72, 0.3);
+}
+
+.btn-primary:hover {
+    background-color: #5d4037;
+    box-shadow: 0 6px 12px rgba(93, 64, 55, 0.4);
+}
+
+/* Stats Cards Gradient */
+.bg-primary {
+    background: linear-gradient(135deg, #795548, #5d4037) !important;
+}
+.bg-success {
+    background: linear-gradient(135deg, #8d6e63, #6d4c41) !important;
+}
+.bg-warning {
+    background: linear-gradient(135deg, #a1887f, #8d6e63) !important;
+}
+.bg-info {
+    background: linear-gradient(135deg, #bcaaa4, #a1887f) !important;
+}
+
+.text-white {
+    color: #fff !important;
+}
+
+/* Icon Styling */
+i {
+    color: #795548;
+    margin-right: 8px;
+}
+
+/* Spacing */
+.row {
+    margin-bottom: 30px;
+}
+
+/* Footer Styling */
+footer {
+    background-color: #f3e3d3; /* light brown background */
+    color: #4e342e; /* dark brown text */
+    text-align: center;
+    padding: 50px 0;
+    font-weight: 500;
+    border-top: 2px solid #e0c9a6;
+    margin-top: 40px;
+}
+
+/* Background Pattern (Optional) */
+body::before {
+    content: "";
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: url('/static/images/paw-pattern.png');
+    background-repeat: repeat;
+    background-size: 70px;
+    opacity: 0.03;
+    z-index: -1;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .card-body h4 {
+        font-size: 1.6rem;
+    }
+    .card-body {
+        padding: 20px 10px;
+    }
+}
+</style>
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="mb-0">
+                    <i class="fas fa-motorcycle text-primary"></i> Rider Dashboard
+                </h2>
+                <a href="{{ url_for('auth.logout') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats Cards (same style as Admin Dashboard) -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="card bg-warning text-white h-100">
+                <div class="card-body">
+                    <h4>{{ pending_deliveries or 0 }}</h4>
+                    <p>Pending Deliveries</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card bg-success text-white h-100">
+                <div class="card-body">
+                    <h4>{{ completed_deliveries or 0 }}</h4>
+                    <p>Completed This Month</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card bg-info text-white h-100">
+                <div class="card-body">
+                    <h4>${{ "%.2f"|format(monthly_earnings or 0.00) }}</h4>
+                    <p>This Month Earnings</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card bg-primary text-white h-100">
+                <div class="card-body">
+                    <h4>{{ "%.1f"|format(avg_rating or 0) }}/5</h4>
+                    <p>Average Rating</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Status Filter & My Deliveries -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="fas fa-truck"></i> My Deliveries</h5>
+                        <select class="form-select form-select-sm w-auto" id="statusFilter" onchange="filterDeliveries()">
+                            <option value="">All Statuses</option>
+                            <option value="assigned">Assigned</option>
+                            <option value="picked_up">Picked Up</option>
+                            <option value="on_the_way">On the Way</option>
+                            <option value="delivered">Delivered</option>
+                            <option value="failed">Failed</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if deliveries %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Order #</th>
+                                        <th>Customer</th>
+                                        <th>Status</th>
+                                        <th>Date</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for delivery in deliveries %}
+                                        <tr class="delivery-row" data-status="{{ delivery.status }}">
+                                            <td>{{ delivery.order_id }}</td>
+                                            <td>{{ delivery.customer_name }}</td>
+                                            <td>
+                                                {% if delivery.status == 'assigned' %}
+                                                    <span class="badge bg-warning">Assigned</span>
+                                                {% elif delivery.status == 'picked_up' %}
+                                                    <span class="badge bg-info">Picked Up</span>
+                                                {% elif delivery.status == 'on_the_way' %}
+                                                    <span class="badge bg-primary">On the Way</span>
+                                                {% elif delivery.status == 'delivered' %}
+                                                    <span class="badge bg-success">Delivered</span>
+                                                {% else %}
+                                                    <span class="badge bg-danger">{{ delivery.status.title() }}</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>{{ delivery.assigned_at.strftime('%b %d, %Y') }}</td>
+                                            <td>
+                                                <button class="btn btn-sm btn-outline-primary me-1 view-delivery-detail" data-delivery-id="{{ delivery.id }}">
+                                                    <i class="fas fa-eye"></i> Details
+                                                </button>
+                                                {% if delivery.status == 'assigned' %}
+                                                    <button class="btn btn-sm btn-info update-delivery-status" data-delivery-id="{{ delivery.id }}" data-status="picked_up">
+                                                        <i class="fas fa-hand-paper"></i> Pick Up
+                                                    </button>
+                                                {% elif delivery.status == 'picked_up' %}
+                                                    <button class="btn btn-sm btn-primary update-delivery-status" data-delivery-id="{{ delivery.id }}" data-status="on_the_way">
+                                                        <i class="fas fa-truck"></i> On the Way
+                                                    </button>
+                                                {% elif delivery.status == 'on_the_way' %}
+                                                    <button class="btn btn-sm btn-success update-delivery-status" data-delivery-id="{{ delivery.id }}" data-status="delivered">
+                                                        <i class="fas fa-check"></i> Delivered
+                                                    </button>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-truck fa-3x text-muted mb-3"></i>
+                            <h5 class="text-muted">No deliveries yet</h5>
+                            <p class="text-muted">Your assigned deliveries will appear here.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Available Orders -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-plus-circle"></i> Available Orders</h5>
+                </div>
+                <div class="card-body">
+                    {% if available_orders %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Order #</th>
+                                        <th>Customer</th>
+                                        <th>Items</th>
+                                        <th>Total</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for order in available_orders %}
+                                        <tr>
+                                            <td>{{ order.order_number }}</td>
+                                            <td>{{ order.customer_name }}</td>
+                                            <td>{{ order.items_count }} item(s)</td>
+                                            <td>${{ "%.2f"|format(order.total_amount) }}</td>
+                                            <td>
+                                                <form method="POST" action="{{ url_for('rider.accept_order', order_id=order.id) }}" class="d-inline">
+                                                    {{ csrf_token_value }}
+                                                    <button type="submit" class="btn btn-sm btn-primary">
+                                                        <i class="fas fa-hand-paper"></i> Accept Order
+                                                    </button>
+                                                </form>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-shopping-cart fa-3x text-muted mb-3"></i>
+                            <h5 class="text-muted">No available orders</h5>
+                            <p class="text-muted">Check back later for new delivery opportunities.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delivery Detail Modal -->
+    <div class="modal fade" id="deliveryDetailModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Delivery Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="deliveryDetailContent">
+                    <!-- Content loaded via AJAX -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    window.csrfTokenValue = "{{ csrf_token_value }}";
+    window.updateStatusUrl = "{{ url_for('rider.update_delivery_status') }}";
+</script>
+<script src="{{ url_for('static', filename='js/rider_dashboard.js') }}"></script>
+
+{% endblock %}
